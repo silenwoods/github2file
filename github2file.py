@@ -77,36 +77,51 @@ def remove_comments_and_docstrings(source):
     return ast.unparse(tree)
 
 def download_repo(repo_url, output_file, lang, keep_comments=False, branch_or_tag="master"):
-    """Download and process files from a GitHub repository."""
-    download_url = f"{repo_url}/archive/refs/heads/{branch_or_tag}.zip"
-
-    print(download_url)
-    response = requests.get(download_url)
-
-    if response.status_code == 200:
-        zip_file = zipfile.ZipFile(io.BytesIO(response.content))
-        with open(output_file, "w", encoding="utf-8") as outfile:
-            for file_path in zip_file.namelist():
-                # Skip directories, non-language files, less likely useful files, hidden directories, and test files
-                if file_path.endswith("/") or not is_file_type(file_path, lang) or not is_likely_useful_file(file_path, lang):
-                    continue
-                file_content = zip_file.read(file_path).decode("utf-8")
-
-                # Skip test files based on content and files with insufficient substantive content
-                if is_test_file(file_content, lang) or not has_sufficient_content(file_content):
-                    continue
-                if lang == "python" and not keep_comments:
-                    try:
-                        file_content = remove_comments_and_docstrings(file_content)
-                    except SyntaxError:
-                        # Skip files with syntax errors
-                        continue
-                outfile.write(f"// File: {file_path}\n" if lang == "go" else f"# File: {file_path}\n")
-                outfile.write(file_content)
-                outfile.write("\n\n")
+    if repo_url.endswith('.zip'):
+        zip_file = zipfile.ZipFile(repo_url)
     else:
-        print(f"Failed to download the repository. Status code: {response.status_code}")
-        sys.exit(1)
+        """Download and process files from a GitHub repository."""
+        download_url = f"{repo_url}/archive/refs/heads/{branch_or_tag}.zip"
+
+        print(download_url)
+        response = requests.get(download_url)
+
+        if response.status_code == 200:
+            zip_file = zipfile.ZipFile(io.BytesIO(response.content))
+        else:
+            print(f"Failed to download the repository. Status code: {response.status_code}")
+            sys.exit(1)
+            
+    # New code to print the size of zip_file
+    total_size = sum([info.file_size for info in zip_file.infolist()])
+    print("Size of zip_file: ", total_size)
+
+    with open(output_file, "w", encoding="utf-8") as outfile:
+        for file_path in zip_file.namelist():
+            print(f"processing file: {file_path}")
+            # Skip directories, non-language files, less likely useful files, hidden directories, and test files
+            #if file_path.endswith("/") or not is_file_type(file_path, lang) or not is_likely_useful_file(file_path, lang):
+            if file_path.endswith("/"):
+                print("Jumped file: ", file_path)
+                continue
+            try:
+                file_content = zip_file.read(file_path).decode("utf-8")
+            except UnicodeDecodeError:
+                print(f"Unable to decode file: {file_path}")
+                continue
+            # Skip test files based on content and files with insufficient substantive content
+            # if is_test_file(file_content, lang) or not has_sufficient_content(file_content):
+            #    continue
+            # if lang == "python" and not keep_comments:
+            #     try:
+            #         file_content = remove_comments_and_docstrings(file_content)
+            #     except SyntaxError:
+            #         # Skip files with syntax errors
+            #         print(f"SyntaxError and skip")
+            #         continue
+            outfile.write(f"// File: {file_path}\n" if lang == "go" else f"# File: {file_path}\n")
+            outfile.write(file_content)
+            outfile.write("\n\n")
 
 import argparse
 
