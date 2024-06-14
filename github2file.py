@@ -119,7 +119,7 @@ def download_repo(repo_url, output_file, lang, keep_comments=False, branch_or_ta
             #         # Skip files with syntax errors
             #         print(f"SyntaxError and skip")
             #         continue
-            outfile.write(f"// File: {file_path}\n" if lang == "go" else f"# File: {file_path}\n")
+            outfile.write(f"// File: <<<<<<<<{file_path}>>>>>>>>\n" if lang == "go" else f"# File: <<<<<<<<{file_path}>>>>>>>>\n")
             outfile.write(file_content)
             outfile.write("\n\n")
 
